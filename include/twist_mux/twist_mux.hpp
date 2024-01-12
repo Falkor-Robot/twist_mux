@@ -51,6 +51,7 @@ namespace twist_mux
 class TwistMuxDiagnostics;
 struct TwistMuxDiagnosticsStatus;
 class VelocityTopicHandle;
+class VelocityUnstampedTopicHandle;
 class LockTopicHandle;
 
 /**
@@ -63,7 +64,7 @@ public:
   template<typename T>
   using handle_container = std::list<T>;
 
-  using velocity_topic_container = handle_container<VelocityTopicHandle>;
+  using velocity_topic_container = handle_container<VelocityUnstampedTopicHandle>;
   using lock_topic_container = handle_container<LockTopicHandle>;
 
   TwistMux();
@@ -71,7 +72,8 @@ public:
 
   void init();
 
-  bool hasPriority(const VelocityTopicHandle & twist);
+  //bool hasPriority(const VelocityTopicHandle & twist);
+  bool hasPriority(const std::string twist);
 
   void publishTwist(const geometry_msgs::msg::TwistStamped::ConstSharedPtr & msg);
 

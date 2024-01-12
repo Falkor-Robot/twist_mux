@@ -49,7 +49,7 @@
 
 namespace twist_mux
 {
-template<typename T>
+template<typename T,typename K>
 class TopicHandle_
 {
 public:
@@ -142,7 +142,7 @@ public:
 protected:
   std::string name_;
   std::string topic_;
-  typename rclcpp::Subscription<T>::SharedPtr subscriber_;
+  typename rclcpp::Subscription<K>::SharedPtr subscriber_;
   rclcpp::Duration timeout_;
   priority_type priority_;
 
@@ -153,10 +153,10 @@ protected:
   T msg_;
 };
 
-class VelocityTopicHandle : public TopicHandle_<geometry_msgs::msg::TwistStamped>
+class VelocityTopicHandle : public TopicHandle_<geometry_msgs::msg::TwistStamped,geometry_msgs::msg::TwistStamped>
 {
 private:
-  typedef TopicHandle_<geometry_msgs::msg::TwistStamped> base_type;
+  typedef TopicHandle_<geometry_msgs::msg::TwistStamped,geometry_msgs::msg::TwistStamped> base_type;
 
   // https://index.ros.org/doc/ros2/About-Quality-of-Service-Settings
   // rmw_qos_profile_t twist_qos_profile = rmw_qos_profile_sensor_data;
@@ -195,16 +195,68 @@ public:
     // Note that we have to check all the locks because they might time out
     // and since we have several topics we must look for the highest one in
     // all the topic list; so far there's no O(1) solution.
-    if (mux_->hasPriority(*this)) {
+    if (mux_->hasPriority(this->getName()/**this*/)) {
       mux_->publishTwist(msg);
     }
   }
 };
 
-class LockTopicHandle : public TopicHandle_<std_msgs::msg::Bool>
+class VelocityUnstampedTopicHandle : public TopicHandle_<geometry_msgs::msg::TwistStamped,geometry_msgs::msg::Twist>
 {
 private:
-  typedef TopicHandle_<std_msgs::msg::Bool> base_type;
+  typedef TopicHandle_<geometry_msgs::msg::TwistStamped,geometry_msgs::msg::Twist> base_type;
+
+  // https://index.ros.org/doc/ros2/About-Quality-of-Service-Settings
+  // rmw_qos_profile_t twist_qos_profile = rmw_qos_profile_sensor_data;
+
+public:
+  typedef typename base_type::priority_type priority_type;
+
+  VelocityUnstampedTopicHandle(
+    const std::string & name, const std::string & topic, const rclcpp::Duration & timeout,
+    priority_type priority, TwistMux * mux)
+  : base_type(name, topic, timeout, priority, mux)
+  {
+    
+    subscriber_ = mux_->create_subscription<geometry_msgs::msg::Twist>(
+      topic_, rclcpp::SystemDefaultsQoS(),
+      std::bind(&VelocityUnstampedTopicHandle::callback, this, std::placeholders::_1));
+    
+    // subscriber_ = nh_.create_subscription<geometry_msgs::msg::Twist>(
+    //    topic_, twist_qos_profile,
+    //  std::bind(&VelocityTopicHandle::callback, this, std::placeholders::_1));
+  }
+
+  bool isMasked(priority_type lock_priority) const
+  {
+    // std::cout << hasExpired() << " / " << (getPriority() < lock_priority) << std::endl;
+    return hasExpired() || (getPriority() < lock_priority);
+  }
+
+  void callback(const geometry_msgs::msg::Twist::ConstSharedPtr msg)
+  {
+    stamp_ = mux_->now();
+    //stamp_ = msg->header.stamp;
+    msg_.header.stamp = stamp_;
+    msg_.header.frame_id = "/";
+    msg_.twist = *msg;
+
+    // Check if this twist has priority.
+    // Note that we have to check all the locks because they might time out
+    // and since we have several topics we must look for the highest one in
+    // all the topic list; so far there's no O(1) solution.
+    if (mux_->hasPriority(this->getName())) {
+      geometry_msgs::msg::TwistStamped::ConstSharedPtr ptr = std::make_shared<geometry_msgs::msg::TwistStamped>(msg_);
+
+      mux_->publishTwist( ptr);
+    }
+  }
+};
+
+class LockTopicHandle : public TopicHandle_<std_msgs::msg::Bool,std_msgs::msg::Bool>
+{
+private:
+  typedef TopicHandle_<std_msgs::msg::Bool,std_msgs::msg::Bool> base_type;
 
   // https://index.ros.org/doc/ros2/About-Quality-of-Service-Settings
   // rmw_qos_profile_t lock_qos_profile = rmw_qos_profile_sensor_data;

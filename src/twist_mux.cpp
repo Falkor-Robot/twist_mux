@@ -165,7 +165,8 @@ int TwistMux::getLockPriority()
   return priority;
 }
 
-bool TwistMux::hasPriority(const VelocityTopicHandle & twist)
+//bool TwistMux::hasPriority(const VelocityTopicHandle & twist)
+bool TwistMux::hasPriority(const std::string twist)
 {
   const auto lock_priority = getLockPriority();
 
@@ -184,7 +185,7 @@ bool TwistMux::hasPriority(const VelocityTopicHandle & twist)
     }
   }
 
-  return twist.getName() == velocity_name;
+  return twist/*.getName() */ == velocity_name;
 }
 
 }  // namespace twist_mux
