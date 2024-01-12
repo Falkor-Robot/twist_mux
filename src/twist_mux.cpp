@@ -165,6 +165,7 @@ int TwistMux::getLockPriority()
   return priority;
 }
 
+//wa to read Twist and produce TwistStamped
 //bool TwistMux::hasPriority(const VelocityTopicHandle & twist)
 bool TwistMux::hasPriority(const std::string twist)
 {
